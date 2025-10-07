@@ -7,8 +7,8 @@
                             data-kt-swapper="true" data-kt-swapper-mode="prepend"
                             data-kt-swapper-parent="{default: '#kt_content_container', lg: '#kt_header_container'}">
                             <!--begin::Heading-->
-                            <h1 class="d-flex flex-column text-gray-900 fw-bold my-0 fs-1">Olá, Bruno Rangel
-                                <small class="text-muted fs-6 fw-semibold pt-1">Você está logado no sistema</small>
+                            <h1 class="d-flex flex-column text-gray-900 fw-bold my-0 fs-1">Olá, {{ Auth::user()->name }}
+                                <small class="text-muted fs-6 fw-semibold pt-1">Bem-vindo ao Sistema</small>
                             </h1>
                             <!--end::Heading-->
                         </div>

@@ -38,18 +38,18 @@ RUN mkdir -p /var/www/html \
     /etc/supervisor/conf.d
 
 # Configurar Nginx
-COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
-COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY .docker/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY .docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 
 # Configurar PHP-FPM
-COPY docker/php/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
-COPY docker/php/php.ini /usr/local/etc/php/php.ini
+COPY .docker/php/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
+COPY .docker/php/php.ini /usr/local/etc/php/php.ini
 
 # Configurar Supervisor
-COPY docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY .docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Script de inicialização
-COPY docker/start.sh /usr/local/bin/start.sh
+COPY .docker/start.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh
 
 # Definir diretório de trabalho

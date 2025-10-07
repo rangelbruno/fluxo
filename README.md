@@ -1,61 +1,294 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Laravel Template
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Template Laravel pré-configurado com autenticação, Docker e assets frontend otimizados.
 
-## About Laravel
+## 🚀 Características
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Laravel 12** com PHP 8.3
+- **Autenticação** completa (login, registro, logout)
+- **Docker** configurado para desenvolvimento e produção
+- **Assets frontend** prontos em `/public/assets/`
+- **Tailwind CSS v4** para estilização
+- **Pest** para testes
+- **Laravel Pint** para formatação de código
+- **Laravel MCP** para desenvolvimento assistido
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 📋 Pré-requisitos
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- Docker e Docker Compose
+- Git
 
-## Learning Laravel
+## 🔧 Instalação
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 1. Clone o repositório
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+```bash
+git clone <seu-repositorio>
+cd laravel
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 2. Configure o ambiente
 
-## Laravel Sponsors
+```bash
+# Copie o arquivo de ambiente
+cp .env.example .env
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+# Ou use o ambiente Docker
+cp .docker/.env.docker .env
+```
 
-### Premium Partners
+### 3. Inicie o ambiente Docker
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+#### Desenvolvimento
 
-## Contributing
+```bash
+# Entre no diretório Docker
+cd .docker
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+# Inicie os containers
+docker-compose -f docker-compose.dev.yml up -d
 
-## Code of Conduct
+# Volte ao diretório raiz
+cd ..
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+#### Produção
 
-## Security Vulnerabilities
+```bash
+# Entre no diretório Docker
+cd .docker
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# Inicie os containers
+docker-compose up -d
 
-## License
+# Volte ao diretório raiz
+cd ..
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 4. Instale as dependências
+
+```bash
+# Dentro do container
+docker exec -it laravel-app-dev composer install
+
+# Gere a chave da aplicação
+docker exec -it laravel-app-dev php artisan key:generate
+
+# Execute as migrations (se houver banco de dados configurado)
+docker exec -it laravel-app-dev php artisan migrate
+```
+
+## 🌐 Acesso
+
+- **Desenvolvimento**: http://localhost
+- **Produção**: http://localhost:8090
+
+## 📁 Estrutura do Projeto
+
+```
+.
+├── .docker/                 # Configurações Docker
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── docker-compose.dev.yml
+│   ├── nginx/              # Configurações Nginx
+│   ├── php/                # Configurações PHP
+│   └── supervisor/         # Configurações Supervisor
+├── app/
+│   ├── Http/
+│   │   └── Controllers/
+│   │       └── Auth/       # Controllers de autenticação
+│   └── Models/
+├── public/
+│   └── assets/             # Assets frontend (CSS, JS, imagens)
+├── resources/
+│   └── views/
+│       └── auth/           # Views de autenticação
+└── routes/
+    └── web.php             # Rotas web
+```
+
+## 🔐 Autenticação
+
+O template inclui autenticação completa:
+
+- **Login**: `/login`
+- **Registro**: `/register`
+- **Dashboard**: `/dashboard` (protegida)
+- **Logout**: `POST /logout`
+
+### Criando um usuário via tinker
+
+```bash
+docker exec -it laravel-app-dev php artisan tinker
+```
+
+```php
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+
+User::create([
+    'name' => 'Admin',
+    'email' => 'admin@example.com',
+    'password' => Hash::make('password'),
+]);
+```
+
+## 🎨 Frontend
+
+Os assets estão organizados em `/public/assets/`:
+
+- **CSS**: `/public/assets/css/`
+- **JavaScript**: `/public/assets/js/`
+- **Imagens**: `/public/assets/media/`
+- **Plugins**: `/public/assets/plugins/`
+
+## 🧪 Testes
+
+```bash
+# Execute todos os testes
+docker exec -it laravel-app-dev php artisan test
+
+# Execute um arquivo específico
+docker exec -it laravel-app-dev php artisan test tests/Feature/Auth/LoginTest.php
+
+# Execute com filtro
+docker exec -it laravel-app-dev php artisan test --filter=login
+```
+
+## 🎨 Formatação de Código
+
+```bash
+# Formate o código com Pint
+docker exec -it laravel-app-dev vendor/bin/pint
+
+# Verifique apenas arquivos modificados
+docker exec -it laravel-app-dev vendor/bin/pint --dirty
+```
+
+## 🔧 Comandos Úteis
+
+```bash
+# Limpar cache
+docker exec -it laravel-app-dev php artisan cache:clear
+docker exec -it laravel-app-dev php artisan config:clear
+docker exec -it laravel-app-dev php artisan route:clear
+docker exec -it laravel-app-dev php artisan view:clear
+
+# Otimizar para produção
+docker exec -it laravel-app php artisan optimize
+docker exec -it laravel-app php artisan config:cache
+docker exec -it laravel-app php artisan route:cache
+docker exec -it laravel-app php artisan view:cache
+```
+
+## 🚀 Adicionando API Externa (Opcional)
+
+Se você deseja integrar uma API externa:
+
+1. Crie um Service em `app/Services/`:
+
+```php
+<?php
+
+namespace App\Services;
+
+use Illuminate\Support\Facades\Http;
+
+class ExternalApiService
+{
+    private string $baseUrl;
+
+    public function __construct()
+    {
+        $this->baseUrl = config('services.external_api.url');
+    }
+
+    public function get(string $endpoint): array
+    {
+        try {
+            $response = Http::timeout(30)
+                ->get($this->baseUrl . $endpoint);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'data' => $response->json(),
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Erro ao buscar dados',
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Erro na comunicação com o servidor',
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+}
+```
+
+2. Configure em `config/services.php`:
+
+```php
+'external_api' => [
+    'url' => env('EXTERNAL_API_URL'),
+],
+```
+
+3. Adicione ao `.env`:
+
+```env
+EXTERNAL_API_URL=https://api.example.com
+```
+
+## 📝 Banco de Dados
+
+Por padrão, o template usa `DB_CONNECTION=null` (sem banco). Para adicionar:
+
+1. Configure no `.env`:
+
+```env
+DB_CONNECTION=mysql
+DB_HOST=mysql
+DB_PORT=3306
+DB_DATABASE=laravel
+DB_USERNAME=root
+DB_PASSWORD=secret
+```
+
+2. Adicione o serviço MySQL ao `docker-compose.yml`:
+
+```yaml
+mysql:
+  image: mysql:8.0
+  container_name: laravel-mysql
+  environment:
+    MYSQL_ROOT_PASSWORD: secret
+    MYSQL_DATABASE: laravel
+  volumes:
+    - mysql_data:/var/lib/mysql
+  ports:
+    - "3306:3306"
+
+volumes:
+  mysql_data:
+```
+
+3. Execute as migrations:
+
+```bash
+docker exec -it laravel-app-dev php artisan migrate
+```
+
+## 📄 Licença
+
+Este projeto é open-source e está disponível sob a licença MIT.
+
+## 🤝 Contribuindo
+
+Contribuições são bem-vindas! Sinta-se à vontade para abrir issues e pull requests.

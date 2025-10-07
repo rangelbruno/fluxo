@@ -39,30 +39,46 @@
                     <!--begin::Wrapper-->
                     <div class="w-lg-500px p-10">
                         <!--begin::Form-->
-                        <form class="form w-100" novalidate="novalidate" id="kt_sign_in_form"
-                            data-kt-redirect-url="index.html" action="#">
+                        <form class="form w-100" method="POST" action="{{ route('login.post') }}" id="kt_sign_in_form">
+                            @csrf
                             <!--begin::Heading-->
                             <div class="text-center mb-11">
                                 <!--begin::Title-->
-                                <h1 class="text-gray-900 fw-bolder mb-3">Sign In</h1>
+                                <h1 class="text-gray-900 fw-bolder mb-3">Entrar</h1>
                                 <!--end::Title-->
                                 <!--begin::Subtitle-->
-                                <div class="text-gray-500 fw-semibold fs-6">Your Social Campaigns</div>
+                                <div class="text-gray-500 fw-semibold fs-6">Sistema Legislativo</div>
                                 <!--end::Subtitle=-->
                             </div>
                             <!--begin::Heading-->
+
+                            @if ($errors->any())
+                                <div class="alert alert-danger">
+                                    @foreach ($errors->all() as $error)
+                                        <div>{{ $error }}</div>
+                                    @endforeach
+                                </div>
+                            @endif
+
+                            @if (session('success'))
+                                <div class="alert alert-success">
+                                    {{ session('success') }}
+                                </div>
+                            @endif
+
                             <!--begin::Input group=-->
                             <div class="fv-row mb-8">
-                                <!--begin::Email-->
-                                <input type="text" placeholder="Email" name="email" autocomplete="off"
-                                    class="form-control bg-transparent" />
-                                <!--end::Email-->
+                                <!--begin::Login-->
+                                <input type="text" placeholder="Login" name="login" autocomplete="off"
+                                    value="{{ old('login') }}"
+                                    class="form-control bg-transparent @error('login') is-invalid @enderror" />
+                                <!--end::Login-->
                             </div>
                             <!--end::Input group=-->
                             <div class="fv-row mb-3">
                                 <!--begin::Password-->
-                                <input type="password" placeholder="Password" name="password" autocomplete="off"
-                                    class="form-control bg-transparent" />
+                                <input type="password" placeholder="Senha" name="password" autocomplete="off"
+                                    class="form-control bg-transparent @error('password') is-invalid @enderror" />
                                 <!--end::Password-->
                             </div>
                             <!--end::Input group=-->
@@ -79,18 +95,18 @@
                             <div class="d-grid mb-10">
                                 <button type="submit" id="kt_sign_in_submit" class="btn btn-primary">
                                     <!--begin::Indicator label-->
-                                    <span class="indicator-label">Sign In</span>
+                                    <span class="indicator-label">Entrar</span>
                                     <!--end::Indicator label-->
                                     <!--begin::Indicator progress-->
-                                    <span class="indicator-progress">Please wait...
+                                    <span class="indicator-progress">Aguarde...
                                         <span class="spinner-border spinner-border-sm align-middle ms-2"></span></span>
                                     <!--end::Indicator progress-->
                                 </button>
                             </div>
                             <!--end::Submit button-->
                             <!--begin::Sign up-->
-                            <div class="text-gray-500 text-center fw-semibold fs-6">Not a Member yet?
-                                <a href="authentication/layouts/corporate/sign-up.html" class="link-primary">Sign up</a>
+                            <div class="text-gray-500 text-center fw-semibold fs-6">Não possui conta?
+                                <a href="{{ route('register') }}" class="link-primary">Registrar</a>
                             </div>
                             <!--end::Sign up-->
                         </form>
@@ -227,7 +243,15 @@
     <!--begin::Javascript-->
     <script src="{{ asset('assets/plugins/global/plugins.bundle.js') }}"></script>
     <script src="{{ asset('assets/js/scripts.bundle.js') }}"></script>
-    <script src="{{ asset('assets/js/custom/authentication/sign-in/general.js') }}"></script>
+    <script>
+        // Ensure form submits normally without JavaScript validation
+        document.getElementById('kt_sign_in_form').addEventListener('submit', function(e) {
+            const button = document.getElementById('kt_sign_in_submit');
+            button.disabled = true;
+            button.querySelector('.indicator-label').style.display = 'none';
+            button.querySelector('.indicator-progress').style.display = 'inline-block';
+        });
+    </script>
     <!--end::Javascript-->
 </body>
 <!--end::Body-->
