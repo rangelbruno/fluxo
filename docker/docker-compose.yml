@@ -1,9 +1,11 @@
+name: ferramenta
+
 services:
   app:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    container_name: laravel-app
+    container_name: ferramenta-app
     restart: unless-stopped
     working_dir: /var/www
     volumes:
@@ -12,15 +14,15 @@ services:
       - ./php/php-fpm.conf:/usr/local/etc/php-fpm.d/www.conf
       - ./nginx/default.conf:/etc/nginx/sites-available/default
     ports:
-      - "8000:80"
+      - "8001:80"
     networks:
-      - laravel
+      - ferramenta
     depends_on:
       - postgres
 
   postgres:
     image: postgres:16-alpine
-    container_name: laravel-postgres
+    container_name: ferramenta-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_DATABASE:-laravel}
@@ -30,12 +32,12 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_PORT:-5435}:5432"
     networks:
-      - laravel
+      - ferramenta
 
 networks:
-  laravel:
+  ferramenta:
     driver: bridge
 
 volumes:

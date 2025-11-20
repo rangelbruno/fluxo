@@ -1,12 +1,14 @@
 # Docker Compose para desenvolvimento
 version: '3.8'
 
+name: ferramenta
+
 services:
   app:
     build:
       context: ..
       dockerfile: .docker/Dockerfile
-    container_name: laravel-app-dev
+    container_name: ferramenta-app
     restart: unless-stopped
     working_dir: /var/www/html
     volumes:
@@ -14,8 +16,8 @@ services:
       - ./php/php.ini:/usr/local/etc/php/php.ini
       - vendor:/var/www/html/vendor
     ports:
-      - "80:80"
-      - "443:443"
+      - "8001:80"
+      - "8444:443"
     environment:
       - APP_ENV=local
       - APP_DEBUG=true
