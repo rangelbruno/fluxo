@@ -22,6 +22,209 @@
     <link href="{{ asset('assets/plugins/global/plugins.bundle.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/css/style.bundle.css') }}" rel="stylesheet">
 
+    <!--begin::Aside Toggle Styles-->
+    <style>
+        /* ============================================
+           ASIDE TOGGLE FAB STYLES
+           ============================================ */
+
+        /* FAB Button Base Styles */
+        .aside-toggle-fab {
+            position: fixed;
+            left: 20px;
+            top: 20px;
+            z-index: 1000;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--bs-primary);
+            border: none;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            cursor: pointer;
+            transition: all 0.3s ease-in-out;
+        }
+
+        /* FAB Hover State */
+        .aside-toggle-fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.2);
+            background: var(--bs-primary-hover, #024ca5);
+        }
+
+        /* FAB Active State */
+        .aside-toggle-fab:active {
+            transform: scale(0.95);
+        }
+
+        /* FAB Icon */
+        .aside-toggle-fab i {
+            color: #fff !important;
+            transition: transform 0.3s ease-in-out;
+        }
+
+        /* ============================================
+           FAB DYNAMIC POSITIONING
+           ============================================ */
+
+        /* When aside is VISIBLE - FAB next to aside (290px from left) */
+        body:not(.aside-hidden) .aside-toggle-fab {
+            left: 290px;
+        }
+
+        /* When aside is HIDDEN - FAB in top-left corner */
+        body.aside-hidden .aside-toggle-fab {
+            left: 20px;
+        }
+
+        /* ============================================
+           ASIDE HIDDEN STATE - HIDE MENU
+           ============================================ */
+
+        /* 1. Completely hide the aside */
+        body.aside-hidden #kt_aside {
+            display: none !important;
+            width: 0 !important;
+            min-width: 0 !important;
+            max-width: 0 !important;
+        }
+
+        /* 2. Remove padding/margin/gap from page */
+        body.aside-hidden .page {
+            padding-left: 0 !important;
+            margin-left: 0 !important;
+            padding-right: 0 !important;
+            margin-right: 0 !important;
+            gap: 0 !important;
+            position: relative !important;
+        }
+
+        /* 3. Force flex-root to occupy 100% width */
+        body.aside-hidden .flex-root {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        /* 4. Position wrapper absolutely to eliminate white space */
+        body.aside-hidden #kt_wrapper {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            padding-left: 80px !important; /* Space for FAB (50px) + margins */
+        }
+
+        body.aside-hidden .wrapper {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            padding-left: 80px !important; /* Space for FAB */
+        }
+
+        /* 5. Expand content container to 100% */
+        body.aside-hidden #kt_content_container {
+            max-width: 100% !important;
+            width: 100% !important;
+            padding-left: 2.25rem;
+            padding-right: 2.25rem;
+        }
+
+        body.aside-hidden .container-xxl {
+            max-width: 100% !important;
+        }
+
+        /* 6. Force content area to expand */
+        body.aside-hidden #kt_content {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+
+        body.aside-hidden .content {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+
+        /* ============================================
+           ICON ROTATION
+           ============================================ */
+
+        /* Icon in normal state */
+        #kt_aside_toggle_icon {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        /* Rotate 90 degrees when aside is hidden */
+        body.aside-hidden #kt_aside_toggle_icon {
+            transform: rotate(90deg);
+        }
+
+        /* ============================================
+           MOBILE RESPONSIVENESS
+           ============================================ */
+
+        @media (max-width: 991px) {
+            /* Keep aside visible on mobile */
+            body.aside-hidden #kt_aside {
+                display: block !important;
+            }
+
+            /* Remove margins on mobile */
+            body.aside-hidden #kt_wrapper {
+                margin-left: 0 !important;
+            }
+
+            body.aside-hidden .page {
+                padding-left: 0 !important;
+            }
+
+            /* Hide FAB on mobile */
+            .aside-toggle-fab {
+                display: none !important;
+            }
+        }
+
+        /* ============================================
+           SMOOTH ANIMATIONS
+           ============================================ */
+
+        @media (min-width: 992px) {
+            .aside,
+            .wrapper,
+            .page,
+            .container {
+                transition: all 0.3s ease-in-out;
+            }
+        }
+
+        #kt_wrapper {
+            transition: all 0.3s ease-in-out;
+        }
+
+        .page {
+            transition: all 0.3s ease-in-out;
+        }
+
+        #kt_content_container,
+        .container-xxl {
+            transition: max-width 0.3s ease-in-out;
+        }
+    </style>
+    <!--end::Aside Toggle Styles-->
+
 </head>
 <!--end::Head-->
 <!--begin::Body-->
@@ -38,6 +241,14 @@
             <!--begin::Aside-->
             <x-layouts.aside.aside />
             <!--end::Aside-->
+            <!--begin::Aside Toggle FAB - Desktop/Tablet-->
+            <button type="button" class="aside-toggle-fab d-none d-lg-flex" id="kt_aside_toggle_desktop" title="Menu">
+                <i class="ki-duotone ki-abstract-14 fs-2" id="kt_aside_toggle_icon">
+                    <span class="path1"></span>
+                    <span class="path2"></span>
+                </i>
+            </button>
+            <!--end::Aside Toggle FAB-->
             <!--begin::Wrapper-->
             <div class="wrapper d-flex flex-column flex-row-fluid" id="kt_wrapper">
                 <!--begin::Header-->
@@ -2917,6 +3128,71 @@
     <!--end::Global Javascript Bundle-->
 
     <script src="{{ asset('assets/plugins/custom/datatables/datatables.bundle.js') }}"></script>
+
+    <!--begin::Aside Toggle Script-->
+    <script>
+        (function() {
+            'use strict';
+
+            // Wait for DOM to be ready
+            document.addEventListener('DOMContentLoaded', function() {
+                const toggleBtn = document.getElementById('kt_aside_toggle_desktop');
+                const body = document.body;
+                const STORAGE_KEY = 'aside_hidden_state';
+
+                if (!toggleBtn) return;
+
+                // 1. LOAD SAVED STATE FROM LOCALSTORAGE
+                const savedState = localStorage.getItem(STORAGE_KEY);
+                if (savedState === 'true') {
+                    body.classList.add('aside-hidden');
+
+                    // Dispatch resize after page loads with aside hidden
+                    setTimeout(function() {
+                        window.dispatchEvent(new Event('resize'));
+
+                        // Adjust DataTables if present
+                        if (typeof $.fn.DataTable !== 'undefined') {
+                            $.fn.DataTable.tables({ visible: true, api: true }).columns.adjust();
+                        }
+                    }, 500);
+                }
+
+                // 2. TOGGLE FUNCTIONALITY
+                toggleBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+
+                    // Toggle class on body
+                    body.classList.toggle('aside-hidden');
+
+                    // Save state to localStorage
+                    const isHidden = body.classList.contains('aside-hidden');
+                    localStorage.setItem(STORAGE_KEY, isHidden.toString());
+
+                    // Update button tooltip
+                    const tooltip = isHidden ? 'Abrir Menu' : 'Fechar Menu';
+                    toggleBtn.setAttribute('title', tooltip);
+
+                    // 3. FORCE LAYOUT RECALCULATION FOR CHARTS/DATATABLES/CARDS
+                    setTimeout(function() {
+                        // Dispatch multiple resize events for better compatibility
+                        window.dispatchEvent(new Event('resize'));
+
+                        // Recalculate DataTables if present
+                        if (typeof $.fn.DataTable !== 'undefined') {
+                            $.fn.DataTable.tables({ visible: true, api: true }).columns.adjust();
+                        }
+
+                        // Redraw charts (ApexCharts, ChartJS, etc)
+                        if (typeof ApexCharts !== 'undefined') {
+                            window.dispatchEvent(new Event('resize'));
+                        }
+                    }, 350); // Time for CSS animation to complete
+                });
+            });
+        })();
+    </script>
+    <!--end::Aside Toggle Script-->
 
 </body>
 <!--end::Body-->
