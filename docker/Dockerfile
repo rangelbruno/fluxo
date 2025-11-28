@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     libpq-dev \
     postgresql-client \
+    redis-tools \
     zip \
     unzip \
     nginx \
@@ -19,6 +20,9 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
 RUN docker-php-ext-install pdo_pgsql pgsql mbstring exif pcntl bcmath gd
+
+# Install Redis extension
+RUN pecl install redis && docker-php-ext-enable redis
 
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer

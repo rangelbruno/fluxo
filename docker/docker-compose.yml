@@ -1,11 +1,11 @@
-name: ferramenta
+name: fluxo
 
 services:
   app:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    container_name: ferramenta-app
+    container_name: fluxo-app
     restart: unless-stopped
     working_dir: /var/www
     volumes:
@@ -14,32 +14,125 @@ services:
       - ./php/php-fpm.conf:/usr/local/etc/php-fpm.d/www.conf
       - ./nginx/default.conf:/etc/nginx/sites-available/default
     ports:
-      - "8001:80"
+      - "8006:80"
+    environment:
+      - APP_ENV=${APP_ENV:-local}
+      - APP_DEBUG=${APP_DEBUG:-true}
+      - APP_URL=${APP_URL:-http://localhost:8006}
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-fluxo}
+      - DB_USERNAME=${DB_USERNAME:-fluxo}
+      - DB_PASSWORD=${DB_PASSWORD:-secret}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CACHE_DRIVER=redis
+      - SESSION_DRIVER=redis
+      - QUEUE_CONNECTION=redis
     networks:
-      - ferramenta
+      - fluxo
     depends_on:
       - postgres
+      - redis
 
   postgres:
     image: postgres:16-alpine
-    container_name: ferramenta-postgres
+    container_name: fluxo-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_DATABASE:-laravel}
-      POSTGRES_USER: ${DB_USERNAME:-laravel}
+      POSTGRES_DB: ${DB_DATABASE:-fluxo}
+      POSTGRES_USER: ${DB_USERNAME:-fluxo}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "${DB_PORT:-5435}:5432"
+      - "5437:5432"
     networks:
-      - ferramenta
+      - fluxo
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-fluxo}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: fluxo-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6381:6379"
+    networks:
+      - fluxo
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  n8n-db-init:
+    image: postgres:16-alpine
+    container_name: fluxo-n8n-db-init
+    environment:
+      PGHOST: postgres
+      PGUSER: ${DB_USERNAME:-fluxo}
+      PGPASSWORD: ${DB_PASSWORD:-secret}
+      PGDATABASE: ${DB_DATABASE:-fluxo}
+    networks:
+      - fluxo
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "psql -tc \"SELECT 1 FROM pg_database WHERE datname = 'n8n'\" | grep -q 1 || psql -c 'CREATE DATABASE n8n;'"
+    restart: "no"
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: fluxo-n8n
+    restart: unless-stopped
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - NODE_ENV=production
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5680}
+      - GENERIC_TIMEZONE=${TZ:-America/Sao_Paulo}
+      # Conexão com o PostgreSQL do projeto
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=${DB_USERNAME:-fluxo}
+      - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD:-secret}
+      # Configurações de segurança
+      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE:-true}
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-admin123}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    ports:
+      - "5680:5678"
+    networks:
+      - fluxo
+    depends_on:
+      n8n-db-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
 
 networks:
-  ferramenta:
+  fluxo:
     driver: bridge
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  n8n_data:
     driver: local
