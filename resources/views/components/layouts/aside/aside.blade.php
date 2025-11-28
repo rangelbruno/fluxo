@@ -15,19 +15,100 @@
         <div class="w-100 hover-scroll-overlay-y d-flex pe-3" id="kt_aside_menu_wrapper" data-kt-scroll="true" data-kt-scroll-activate="{default: false, lg: true}" data-kt-scroll-height="auto" data-kt-scroll-dependencies="#kt_aside_logo, #kt_aside_footer" data-kt-scroll-wrappers="#kt_aside, #kt_aside_menu, #kt_aside_menu_wrapper" data-kt-scroll-offset="100" style="height: 454px;">
             <!--begin::Menu-->
             <div class="menu menu-column menu-rounded menu-sub-indention menu-active-bg fw-semibold my-auto" id="#kt_aside_menu" data-kt-menu="true">
-                <!--begin:Menu item-->
-                <div data-kt-menu-trigger="click" class="menu-item here show menu-accordion">
-                    <!--begin:Menu link-->
-                    <span class="menu-link">
+
+                <!--begin:Menu item - Dashboard-->
+                <div class="menu-item {{ request()->routeIs('dashboard') ? 'here' : '' }}">
+                    <a class="menu-link" href="{{ route('dashboard') }}">
                         <span class="menu-icon">
-                            <i class="ki-duotone ki-black-right fs-2"></i>
+                            <i class="ki-duotone ki-element-11 fs-2">
+                                <span class="path1"></span>
+                                <span class="path2"></span>
+                                <span class="path3"></span>
+                                <span class="path4"></span>
+                            </i>
                         </span>
-                        <span class="menu-title">Dashboards</span>
-                        <span class="menu-arrow"></span>
-                    </span>
-                    <!--end:Menu link-->
+                        <span class="menu-title">Dashboard</span>
+                    </a>
                 </div>
                 <!--end:Menu item-->
+
+                <!--begin:Menu section - Financeiro-->
+                <div class="menu-item pt-5">
+                    <div class="menu-content">
+                        <span class="menu-heading fw-bold text-uppercase fs-7">Financeiro</span>
+                    </div>
+                </div>
+                <!--end:Menu section-->
+
+                <!--begin:Menu item - Comprovantes-->
+                <div class="menu-item {{ request()->routeIs('comprovantes.*') ? 'here' : '' }}">
+                    <a class="menu-link" href="{{ route('comprovantes.index') }}">
+                        <span class="menu-icon">
+                            <i class="ki-duotone ki-file-added fs-2">
+                                <span class="path1"></span>
+                                <span class="path2"></span>
+                            </i>
+                        </span>
+                        <span class="menu-title">Comprovantes</span>
+                    </a>
+                </div>
+                <!--end:Menu item-->
+
+                <!--begin:Menu section - Automacoes-->
+                <div class="menu-item pt-5">
+                    <div class="menu-content">
+                        <span class="menu-heading fw-bold text-uppercase fs-7">Automacoes</span>
+                    </div>
+                </div>
+                <!--end:Menu section-->
+
+                <!--begin:Menu item - n8n-->
+                <div class="menu-item {{ request()->routeIs('configuracoes.n8n') ? 'here' : '' }}">
+                    <a class="menu-link" href="{{ route('configuracoes.n8n') }}">
+                        <span class="menu-icon">
+                            <i class="ki-duotone ki-arrows-circle fs-2">
+                                <span class="path1"></span>
+                                <span class="path2"></span>
+                            </i>
+                        </span>
+                        <span class="menu-title">Integracao n8n</span>
+                    </a>
+                </div>
+                <!--end:Menu item-->
+
+                <!--begin:Menu section - Sistema-->
+                <div class="menu-item pt-5">
+                    <div class="menu-content">
+                        <span class="menu-heading fw-bold text-uppercase fs-7">Sistema</span>
+                    </div>
+                </div>
+                <!--end:Menu section-->
+
+                <!--begin:Menu item - Configuracoes-->
+                <div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ request()->is('configuracoes/*') ? 'here show' : '' }}">
+                    <span class="menu-link">
+                        <span class="menu-icon">
+                            <i class="ki-duotone ki-setting-2 fs-2">
+                                <span class="path1"></span>
+                                <span class="path2"></span>
+                            </i>
+                        </span>
+                        <span class="menu-title">Configuracoes</span>
+                        <span class="menu-arrow"></span>
+                    </span>
+                    <div class="menu-sub menu-sub-accordion">
+                        <div class="menu-item">
+                            <a class="menu-link {{ request()->routeIs('configuracoes.n8n') ? 'active' : '' }}" href="{{ route('configuracoes.n8n') }}">
+                                <span class="menu-bullet">
+                                    <span class="bullet bullet-dot"></span>
+                                </span>
+                                <span class="menu-title">Integracao n8n</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <!--end:Menu item-->
+
             </div>
             <!--end::Menu-->
         </div>

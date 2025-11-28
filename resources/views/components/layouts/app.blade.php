@@ -3194,6 +3194,8 @@
     </script>
     <!--end::Aside Toggle Script-->
 
+    @stack('scripts')
+
 </body>
 <!--end::Body-->
 

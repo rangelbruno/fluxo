@@ -1,0 +1,458 @@
+{
+  "name": "Processar Comprovantes de Pagamento",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "comprovante",
+        "options": {
+          "responseMode": "responseNode"
+        }
+      },
+      "id": "webhook-entrada",
+      "name": "Webhook Entrada",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "comprovante-upload"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nó: Preparar Arquivo\n// Converte o arquivo recebido para base64 e extrai metadados\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const body = item.json.body || item.json;\n  const files = item.binary || {};\n  \n  let fileBase64 = null;\n  let fileName = null;\n  let fileType = null;\n  let fileSize = null;\n  \n  // Verificar se veio arquivo binário\n  if (Object.keys(files).length > 0) {\n    const fileKey = Object.keys(files)[0];\n    const file = files[fileKey];\n    fileBase64 = file.data;\n    fileName = file.fileName || 'comprovante';\n    fileType = file.mimeType?.split('/')[1] || 'unknown';\n    fileSize = file.fileSize || 0;\n  } \n  // Ou se veio base64 no body\n  else if (body.file_base64) {\n    fileBase64 = body.file_base64;\n    fileName = body.file_name || 'comprovante';\n    fileType = body.file_type || 'unknown';\n    fileSize = body.file_size || 0;\n  }\n  \n  if (!fileBase64) {\n    throw new Error('Nenhum arquivo encontrado na requisição');\n  }\n  \n  // Determinar se precisa de OCR ou pode ir direto para IA com visão\n  const needsOcr = fileType === 'pdf';\n  const isImage = ['jpg', 'jpeg', 'png', 'webp'].includes(fileType);\n  \n  results.push({\n    json: {\n      file_base64: fileBase64,\n      file_name: fileName,\n      file_type: fileType,\n      file_size: fileSize,\n      needs_ocr: needsOcr,\n      is_image: isImage,\n      user_id: body.user_id || null,\n      metadata: body.metadata || {}\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "preparar-arquivo",
+      "name": "Preparar Arquivo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needs_ocr }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "verificar-tipo",
+      "name": "PDF ou Imagem?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.ocr.space/parse/image",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.OCR_SPACE_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "base64Image",
+              "value": "=data:application/pdf;base64,{{ $json.file_base64 }}"
+            },
+            {
+              "name": "language",
+              "value": "por"
+            },
+            {
+              "name": "isOverlayRequired",
+              "value": "false"
+            },
+            {
+              "name": "detectOrientation",
+              "value": "true"
+            },
+            {
+              "name": "scale",
+              "value": "true"
+            },
+            {
+              "name": "OCREngine",
+              "value": "2"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ocr-pdf",
+      "name": "OCR PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 200],
+      "notes": "Usa OCR.space API para extrair texto de PDFs. Alternativas: Google Vision, AWS Textract"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nó: Preparar Texto OCR\n// Extrai o texto do resultado do OCR e prepara para a IA\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const ocrResult = item.json;\n  const prevData = $('Preparar Arquivo').first().json;\n  \n  let textoExtraido = '';\n  \n  if (ocrResult.ParsedResults && ocrResult.ParsedResults.length > 0) {\n    textoExtraido = ocrResult.ParsedResults\n      .map(r => r.ParsedText)\n      .join('\\n');\n  }\n  \n  if (!textoExtraido || textoExtraido.trim() === '') {\n    textoExtraido = 'Erro: Não foi possível extrair texto do documento.';\n  }\n  \n  results.push({\n    json: {\n      texto_ocr: textoExtraido,\n      file_base64: prevData.file_base64,\n      file_name: prevData.file_name,\n      file_type: prevData.file_type,\n      file_size: prevData.file_size,\n      user_id: prevData.user_id,\n      metadata: prevData.metadata,\n      ocr_success: textoExtraido.length > 50\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "preparar-texto-ocr",
+      "name": "Preparar Texto OCR",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 200]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "model": "gpt-4o",
+        "messages": {
+          "values": [
+            {
+              "content": "=Você é um especialista em análise de comprovantes de pagamento brasileiros. Sua tarefa é extrair informações estruturadas de comprovantes.\n\n## CAMPOS A EXTRAIR\n\nExtraia todos os campos possíveis. Se um campo não estiver presente, use null.\n\n1. data_pagamento: Data (YYYY-MM-DD)\n2. valor: Número decimal (ex: 1234.56)\n3. descricao: Descrição do pagamento\n4. referencia: Número de referência/protocolo\n5. pagador: Nome de quem pagou\n6. documento_pagador: CPF/CNPJ (apenas números)\n7. favorecido: Nome de quem recebeu\n8. documento_favorecido: CPF/CNPJ (apenas números)\n9. forma_pagamento: PIX, TED, DOC, Boleto, Cartão de Crédito, Cartão de Débito, ou Outro\n10. identificador_transacao: ID da transação, NSU, ou E2E\n11. codigo_autenticacao: Código de autenticação\n12. banco_origem: Banco de origem\n13. agencia_origem: Agência origem (números)\n14. conta_origem: Conta origem (números)\n15. banco_destino: Banco destino\n16. agencia_destino: Agência destino (números)\n17. conta_destino: Conta destino (números)\n18. chave_pix: Chave PIX (se aplicável)\n19. tipo_chave_pix: CPF, CNPJ, Email, Telefone, Aleatoria, ou null\n20. observacoes: Alertas ou campos ambíguos\n21. confianca: 0-100 (confiança na extração)\n\n## REGRAS\n- Datas: sempre YYYY-MM-DD\n- Valores: usar ponto decimal (1234.56)\n- Documentos: apenas números\n- Não invente dados, use null se não encontrar\n\nResponda APENAS com JSON válido.",
+              "role": "system"
+            },
+            {
+              "content": "=Extraia os dados deste comprovante:\n\n{{ $json.texto_ocr }}",
+              "role": "user"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.1,
+          "responseFormat": "json_object"
+        }
+      },
+      "id": "ia-texto",
+      "name": "IA Analisar Texto",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [1100, 200],
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      },
+      "notes": "Para texto extraído via OCR. Usa GPT-4o."
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "model": "gpt-4o",
+        "messages": {
+          "values": [
+            {
+              "content": "=Você é um especialista em análise de comprovantes de pagamento brasileiros. Analise a IMAGEM do comprovante e extraia informações estruturadas.\n\n## CAMPOS A EXTRAIR\n\nExtraia todos os campos possíveis. Se um campo não estiver presente, use null.\n\n1. data_pagamento: Data (YYYY-MM-DD)\n2. valor: Número decimal (ex: 1234.56)\n3. descricao: Descrição do pagamento\n4. referencia: Número de referência/protocolo\n5. pagador: Nome de quem pagou\n6. documento_pagador: CPF/CNPJ (apenas números)\n7. favorecido: Nome de quem recebeu\n8. documento_favorecido: CPF/CNPJ (apenas números)\n9. forma_pagamento: PIX, TED, DOC, Boleto, Cartão de Crédito, Cartão de Débito, ou Outro\n10. identificador_transacao: ID da transação, NSU, ou E2E\n11. codigo_autenticacao: Código de autenticação\n12. banco_origem: Banco de origem\n13. agencia_origem: Agência origem (números)\n14. conta_origem: Conta origem (números)\n15. banco_destino: Banco destino\n16. agencia_destino: Agência destino (números)\n17. conta_destino: Conta destino (números)\n18. chave_pix: Chave PIX (se aplicável)\n19. tipo_chave_pix: CPF, CNPJ, Email, Telefone, Aleatoria, ou null\n20. observacoes: Alertas ou campos ambíguos\n21. confianca: 0-100 (confiança na extração)\n\n## REGRAS\n- Datas: sempre YYYY-MM-DD\n- Valores: usar ponto decimal (1234.56)\n- Documentos: apenas números\n- Não invente dados, use null se não encontrar\n\nResponda APENAS com JSON válido.",
+              "role": "system"
+            },
+            {
+              "content": {
+                "type": "multiModal",
+                "value": [
+                  {
+                    "type": "text",
+                    "text": "Extraia os dados deste comprovante de pagamento:"
+                  },
+                  {
+                    "type": "image",
+                    "image": "={{ $json.file_base64 }}",
+                    "imageType": "base64"
+                  }
+                ]
+              },
+              "role": "user"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.1,
+          "responseFormat": "json_object"
+        }
+      },
+      "id": "ia-imagem",
+      "name": "IA Analisar Imagem",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [660, 400],
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      },
+      "notes": "Para imagens (JPG, PNG). Usa GPT-4o com visão."
+    },
+    {
+      "parameters": {},
+      "id": "merge-resultados",
+      "name": "Merge Resultados",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1320, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nó: Validar e Normalizar Dados\n// Valida os dados extraídos pela IA e normaliza os formatos\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  // Pegar resposta da IA\n  let iaResponse = item.json.message?.content || item.json.content || item.json;\n  \n  // Se for string, fazer parse do JSON\n  if (typeof iaResponse === 'string') {\n    try {\n      iaResponse = JSON.parse(iaResponse);\n    } catch (e) {\n      // Tentar extrair JSON de dentro do texto\n      const jsonMatch = iaResponse.match(/\\{[\\s\\S]*\\}/);\n      if (jsonMatch) {\n        iaResponse = JSON.parse(jsonMatch[0]);\n      } else {\n        throw new Error('Resposta da IA não é um JSON válido');\n      }\n    }\n  }\n  \n  // Buscar dados do arquivo original\n  const fileData = $('Preparar Arquivo').first().json;\n  \n  // Funções de validação\n  const normalizeDate = (dateStr) => {\n    if (!dateStr) return null;\n    // Se já está no formato correto\n    if (/^\\d{4}-\\d{2}-\\d{2}$/.test(dateStr)) return dateStr;\n    // Tentar converter DD/MM/YYYY\n    const match = dateStr.match(/(\\d{1,2})[\\/\\-](\\d{1,2})[\\/\\-](\\d{2,4})/);\n    if (match) {\n      const day = match[1].padStart(2, '0');\n      const month = match[2].padStart(2, '0');\n      let year = match[3];\n      if (year.length === 2) year = '20' + year;\n      return `${year}-${month}-${day}`;\n    }\n    return null;\n  };\n  \n  const normalizeValue = (value) => {\n    if (value === null || value === undefined) return null;\n    if (typeof value === 'number') return value;\n    // Remover R$, espaços e converter vírgula para ponto\n    const cleaned = String(value)\n      .replace(/[R$\\s]/g, '')\n      .replace(/\\./g, '')\n      .replace(',', '.');\n    const num = parseFloat(cleaned);\n    return isNaN(num) ? null : num;\n  };\n  \n  const normalizeDocument = (doc) => {\n    if (!doc) return null;\n    // Remover tudo que não for número\n    return String(doc).replace(/\\D/g, '') || null;\n  };\n  \n  const normalizeFormaPagamento = (forma) => {\n    if (!forma) return null;\n    const formaUpper = String(forma).toUpperCase();\n    const mapping = {\n      'PIX': 'PIX',\n      'TED': 'TED',\n      'DOC': 'DOC',\n      'BOLETO': 'Boleto',\n      'CARTAO DE CREDITO': 'Cartão de Crédito',\n      'CARTÃO DE CRÉDITO': 'Cartão de Crédito',\n      'CARTAO DE DEBITO': 'Cartão de Débito',\n      'CARTÃO DE DÉBITO': 'Cartão de Débito',\n      'DEBITO AUTOMATICO': 'Débito Automático',\n      'DÉBITO AUTOMÁTICO': 'Débito Automático',\n      'TRANSFERENCIA': 'Transferência Interna',\n      'TRANSFERÊNCIA': 'Transferência Interna'\n    };\n    return mapping[formaUpper] || forma;\n  };\n  \n  const normalizeTipoChavePix = (tipo) => {\n    if (!tipo) return null;\n    const tipoUpper = String(tipo).toUpperCase();\n    const mapping = {\n      'CPF': 'CPF',\n      'CNPJ': 'CNPJ',\n      'EMAIL': 'Email',\n      'E-MAIL': 'Email',\n      'TELEFONE': 'Telefone',\n      'CELULAR': 'Telefone',\n      'ALEATORIA': 'Aleatoria',\n      'ALEATÓRIO': 'Aleatoria',\n      'EVP': 'Aleatoria'\n    };\n    return mapping[tipoUpper] || null;\n  };\n  \n  // Construir objeto normalizado\n  const normalized = {\n    // Dados do pagamento\n    data_pagamento: normalizeDate(iaResponse.data_pagamento),\n    valor: normalizeValue(iaResponse.valor),\n    descricao: iaResponse.descricao || null,\n    referencia: iaResponse.referencia || null,\n    \n    // Partes\n    pagador: iaResponse.pagador || null,\n    documento_pagador: normalizeDocument(iaResponse.documento_pagador),\n    favorecido: iaResponse.favorecido || null,\n    documento_favorecido: normalizeDocument(iaResponse.documento_favorecido),\n    \n    // Transação\n    forma_pagamento: normalizeFormaPagamento(iaResponse.forma_pagamento),\n    identificador_transacao: iaResponse.identificador_transacao || null,\n    codigo_autenticacao: iaResponse.codigo_autenticacao || null,\n    \n    // Bancos\n    banco_origem: iaResponse.banco_origem || null,\n    agencia_origem: normalizeDocument(iaResponse.agencia_origem),\n    conta_origem: normalizeDocument(iaResponse.conta_origem),\n    banco_destino: iaResponse.banco_destino || null,\n    agencia_destino: normalizeDocument(iaResponse.agencia_destino),\n    conta_destino: normalizeDocument(iaResponse.conta_destino),\n    \n    // PIX\n    chave_pix: iaResponse.chave_pix || null,\n    tipo_chave_pix: normalizeTipoChavePix(iaResponse.tipo_chave_pix),\n    \n    // Arquivo\n    arquivo_original_nome: fileData.file_name,\n    arquivo_tipo: fileData.file_type,\n    arquivo_tamanho: fileData.file_size,\n    \n    // Metadados IA\n    confianca_extracao: iaResponse.confianca || 80,\n    texto_ocr: $('Preparar Texto OCR').first()?.json?.texto_ocr || null,\n    dados_brutos_ia: iaResponse,\n    observacoes_ia: iaResponse.observacoes || null,\n    \n    // Rastreabilidade\n    status: 'processado',\n    user_id: fileData.user_id,\n    origem: 'n8n',\n    workflow_execution_id: $execution.id\n  };\n  \n  // Verificar se há campos críticos ausentes\n  const warnings = [];\n  if (!normalized.data_pagamento) warnings.push('Data de pagamento não identificada');\n  if (!normalized.valor) warnings.push('Valor não identificado');\n  if (!normalized.forma_pagamento) warnings.push('Forma de pagamento não identificada');\n  \n  if (warnings.length > 0) {\n    normalized.observacoes_ia = [normalized.observacoes_ia, ...warnings].filter(Boolean).join('; ');\n    normalized.status = warnings.length >= 2 ? 'revisao_manual' : 'processado';\n    normalized.confianca_extracao = Math.max(0, normalized.confianca_extracao - (warnings.length * 15));\n  }\n  \n  results.push({ json: normalized });\n}\n\nreturn results;"
+      },
+      "id": "validar-normalizar",
+      "name": "Validar e Normalizar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.LARAVEL_API_URL }}/api/v1/comprovantes",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "gravar-api",
+      "name": "Gravar na API Laravel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HEADER_AUTH_CREDENTIAL_ID",
+          "name": "Laravel API Token"
+        }
+      },
+      "notes": "Envia dados para POST /api/v1/comprovantes. Configure a credencial com header X-API-Token."
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "resposta-webhook",
+      "name": "Resposta Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1980, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "id": "verificar-erro",
+      "name": "Verificar Erro",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1980, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nó: Tratar Erro\n// Prepara resposta de erro para o webhook\n\nconst item = $input.first();\nconst errorMessage = item.json.message || item.json.error || 'Erro desconhecido ao processar comprovante';\n\nreturn [{\n  json: {\n    success: false,\n    error: errorMessage,\n    execution_id: $execution.id,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "tratar-erro",
+      "name": "Tratar Erro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2200, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "resposta-erro",
+      "name": "Resposta Erro",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2420, 500]
+    }
+  ],
+  "connections": {
+    "Webhook Entrada": {
+      "main": [
+        [
+          {
+            "node": "Preparar Arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Arquivo": {
+      "main": [
+        [
+          {
+            "node": "PDF ou Imagem?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PDF ou Imagem?": {
+      "main": [
+        [
+          {
+            "node": "OCR PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IA Analisar Imagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OCR PDF": {
+      "main": [
+        [
+          {
+            "node": "Preparar Texto OCR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Texto OCR": {
+      "main": [
+        [
+          {
+            "node": "IA Analisar Texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA Analisar Texto": {
+      "main": [
+        [
+          {
+            "node": "Merge Resultados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA Analisar Imagem": {
+      "main": [
+        [
+          {
+            "node": "Merge Resultados",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Resultados": {
+      "main": [
+        [
+          {
+            "node": "Validar e Normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar e Normalizar": {
+      "main": [
+        [
+          {
+            "node": "Gravar na API Laravel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gravar na API Laravel": {
+      "main": [
+        [
+          {
+            "node": "Resposta Webhook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Verificar Erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Erro": {
+      "main": [
+        [
+          {
+            "node": "Tratar Erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tratar Erro": {
+      "main": [
+        [
+          {
+            "node": "Resposta Erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "Financeiro"
+    },
+    {
+      "name": "IA"
+    },
+    {
+      "name": "OCR"
+    }
+  ],
+  "triggerCount": 1,
+  "pinData": {}
+}
